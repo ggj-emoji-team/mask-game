@@ -1,7 +1,42 @@
 extends Node
 class_name BubbleSystem
 
-signal missed_changed(value: int) # [UNCHANGED] 外部 HUD 用这个信号更新 missed 显示
+const EMOJI_CORPUS := {
+	"LAUGH": {
+		"emoji": "😂",
+		"lines": [
+			"lol",
+			"haha",
+			"this is fine",
+			"nice one",
+			"keep going 😂",
+			"you’re funny",
+			"that was cute",
+			"again?",
+			"ok ok",
+			"lmao"
+		]
+	},
+	"ANGRY": {
+		"emoji": "😡",
+		"lines": [
+			"wrong",
+			"no",
+			"focus",
+			"again",
+			"too slow",
+			"this is bad",
+			"try harder",
+			"you failed",
+			"not good enough",
+			"stop messing up"
+		]
+	}
+}
+
+
+
+signal missed_changed(value: int)
 
 @export var bubble_lifetime: float = 3.0  # [UNCHANGED] 单个泡泡存活时间（秒）
 @export var max_on_screen: int = 999      # [UNCHANGED] 屏幕最多泡泡（防爆）
@@ -175,18 +210,24 @@ func _spawn_bubble(now: float) -> void:
 
 	# [UNCHANGED] 实例化 Bubble 并设置内容/寿命
 	var b := bubble_scene.instantiate() as Bubble
-	b.setup("...", now, bubble_lifetime)
 
-	# [UNCHANGED] UI 上显示
+	# --- 随机选情绪 ---
+	var emotion_keys := EMOJI_CORPUS.keys()
+	var emotion: String = emotion_keys.pick_random()
+	var data: Dictionary = EMOJI_CORPUS[emotion]
+
+	# --- 随机选一句话 ---
+	var line: String = data["lines"].pick_random()
+	var emoji: String = data["emoji"]
+	# 最终显示文本
+	var text := "%s %s" % [emoji, line]
+
+	b.setup(text, now, bubble_lifetime, emotion)  # ✅ 多传一个 emotion
 	bubble_queue_ui.add_child(b)
 
 	# [UNCHANGED] 入队（FIFO）
 	_queue.append(b)
 
-
-# =========================
-# 过期：FIFO 检查并累计 missed
-# =========================
 
 func _check_expired() -> void:
 	# [UNCHANGED] 队列为空就不用检查
@@ -218,14 +259,15 @@ func _check_expired() -> void:
 # [NEW] missed 计数与信号的统一出口
 # =========================
 
-func _reset_counters() -> void:
-	# [NEW] 统一“清零并通知 HUD”
-	missed = 0
-	emit_signal("missed_changed", missed)
-
-
-func _add_missed(delta: int) -> void:
-	# [NEW] 统一“增加 missed 并通知 HUD”
-	# 好处：以后如果 missed 要改名成 overflow 或增加更多统计，只改这里
-	missed += delta
-	emit_signal("missed_changed", missed)
+	var head: Bubble = _queue.pop_front()
+	if is_instance_valid(head):
+		head.queue_free()
+	return true
+	
+func peek_oldest_emotion() -> String:
+	if _queue.is_empty():
+		return ""
+	var head: Bubble = _queue[0]
+	if not is_instance_valid(head):
+		return ""
+	return head.emotion
