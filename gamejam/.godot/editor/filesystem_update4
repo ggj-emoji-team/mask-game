@@ -1,4 +1,5 @@
 res://GameScene.tscn
-res://GameScene.gd
 res://BubbleSystem.gd
+res://GameManager.gd
 res://Bubble.gd
+res://MainTheme.tres

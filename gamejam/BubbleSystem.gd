@@ -119,8 +119,11 @@ func _spawn_bubble(now: float) -> void:
 
 	var text: String = "%s %s" % [emoji, line]
 
-	# Bubble.setup 必须是 4 参数版本
-	b.setup(text, now, bubble_lifetime, emotion)
+# ✅ 修改点：动态计算寿命
+	var dynamic_life = GameManager.get_compressed_lifetime(bubble_lifetime)
+
+	# 使用动态寿命进行 setup
+	b.setup(text, now, dynamic_life, emotion)
 
 	bubble_queue_ui.add_child(b)
 	_queue.append(b)
@@ -140,8 +143,10 @@ func _check_expired() -> void:
 			continue
 
 		if head.is_expired(now):
-			head.queue_free()
-			_queue.pop_front()
+			# head.queue_free()  <--- 注释掉或删掉这行
+			head.become_stone()  # <--- 改成这一行！召唤石化逻辑！
+			
+			_queue.pop_front()   # 继续把它从“待消除队列”里移除，保证它不会挡住下一个气泡
 
 			missed += 1
 			emit_signal("missed_changed", missed)
